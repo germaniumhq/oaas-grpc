@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+
+message ServerAddress {
+  int32 port = 1;
+  repeated string addresses = 2;
+}
+
+message ClientRegistration {
+  string name = 1;
+  string namespace = 2;
+  string version = 3;
+}
+
+service OaasRegistry {
+  rpc registerServcice(ClientRegistration) returns (ServerAddress) {}
+}
