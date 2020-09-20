@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+
+message Ping {
+  string text = 1;
+}
+
+message Pong {
+  string text = 1;
+  int32 len = 2;
+}
+
+service TestService {
+  rpc ping(Ping) returns (Pong) {}
+}

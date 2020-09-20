@@ -2,7 +2,8 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import  oaas_grpc.rpc.registry_pb2 as registry__pb2
+from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
+import oaas_grpc.rpc.registry_pb2 as registry__pb2
 
 
 class OaasRegistryStub(object):
@@ -14,53 +15,111 @@ class OaasRegistryStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.registerServcice = channel.unary_unary(
-                '/OaasRegistry/registerServcice',
-                request_serializer=registry__pb2.ClientRegistration.SerializeToString,
-                response_deserializer=registry__pb2.ServerAddress.FromString,
-                )
+        self.registerService = channel.unary_unary(
+            "/OaasRegistry/registerService",
+            request_serializer=registry__pb2.ServiceRegistration.SerializeToString,
+            response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+        )
+        self.resolveService = channel.unary_unary(
+            "/OaasRegistry/resolveService",
+            request_serializer=registry__pb2.ServiceDefinition.SerializeToString,
+            response_deserializer=registry__pb2.ServiceAddress.FromString,
+        )
 
 
 class OaasRegistryServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def registerServcice(self, request, context):
+    def registerService(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
+    def resolveService(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
-def add_OaasRegistryServicer_to_server(servicer, server):
-    rpc_method_handlers = {
-            'registerServcice': grpc.unary_unary_rpc_method_handler(
-                    servicer.registerServcice,
-                    request_deserializer=registry__pb2.ClientRegistration.FromString,
-                    response_serializer=registry__pb2.ServerAddress.SerializeToString,
+    @staticmethod
+    def add_to_server(servicer, server):
+        rpc_method_handlers = {
+            "registerService": grpc.unary_unary_rpc_method_handler(
+                servicer.registerService,
+                request_deserializer=registry__pb2.ServiceRegistration.FromString,
+                response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
-    }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'OaasRegistry', rpc_method_handlers)
-    server.add_generic_rpc_handlers((generic_handler,))
+            "resolveService": grpc.unary_unary_rpc_method_handler(
+                servicer.resolveService,
+                request_deserializer=registry__pb2.ServiceDefinition.FromString,
+                response_serializer=registry__pb2.ServiceAddress.SerializeToString,
+            ),
+        }
+        generic_handler = grpc.method_handlers_generic_handler(
+            "OaasRegistry", rpc_method_handlers
+        )
+        server.add_generic_rpc_handlers((generic_handler,))
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class OaasRegistry(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def registerServcice(request,
+    def registerService(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/OaasRegistry/registerServcice',
-            registry__pb2.ClientRegistration.SerializeToString,
-            registry__pb2.ServerAddress.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            "/OaasRegistry/registerService",
+            registry__pb2.ServiceRegistration.SerializeToString,
+            google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def resolveService(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/OaasRegistry/resolveService",
+            registry__pb2.ServiceDefinition.SerializeToString,
+            registry__pb2.ServiceAddress.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )

@@ -1,17 +1,30 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
 
-message ServerAddress {
-  int32 port = 1;
-  repeated string addresses = 2;
-}
 
-message ClientRegistration {
+message ServiceDefinition {
   string name = 1;
   string namespace = 2;
   string version = 3;
+  string protocol = 4;
+}
+
+message ServiceIpLink {
+  string ip = 1;
+  int32 port = 2;
+}
+
+message ServiceAddress {
+  ServiceIpLink locations = 1;
+}
+
+message ServiceRegistration {
+  ServiceDefinition serviceDefinition = 1;
+  repeated ServiceAddress serviceAddress = 2;
 }
 
 service OaasRegistry {
-  rpc registerServcice(ClientRegistration) returns (ServerAddress) {}
+  rpc registerService(ServiceRegistration) returns (google.protobuf.Empty) {}
+  rpc resolveService(ServiceDefinition) returns (ServiceAddress) {}
 }
