@@ -21,9 +21,12 @@ class OaasGrpcServer(oaas.ServerMiddleware):
         # we add the types to the server and only after we start it we
         # notify the oaas registry about the new services
         for service_definition in registrations.services:
-            print(f"Added service: {service_definition.gav} as {service_definition.code}")
-            service_definition.code.add_to_server(
-                service_definition.code(), self.server)
+            print(
+                f"Added service: {service_definition.gav} as {service_definition.code}"
+            )
+            service_definition.code.add_to_server(  # type: ignore
+                service_definition.code(), self.server
+            )
 
         port = self.server.add_insecure_port(server_address)
 

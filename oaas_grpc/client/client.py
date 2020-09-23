@@ -6,7 +6,10 @@ import oaas
 from grpc import Channel
 from oaas import ClientDefinition
 from oaas.client_provider import T
-from oaas_registry_api.rpc.registry_pb2 import OaasResolveServiceResponse, OaasServiceDefinition
+from oaas_registry_api.rpc.registry_pb2 import (
+    OaasResolveServiceResponse,
+    OaasServiceDefinition,
+)
 
 from oaas_grpc.client import registry_discovery
 from oaas_grpc.client.oaas_registry import oaas_registry
@@ -18,9 +21,9 @@ def is_someone_listening(location: str) -> bool:
     port = int(tokens[1])
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as a_socket:
-        location = (host_address, port)
+        host_location = (host_address, port)
         try:
-            result_of_check = a_socket.connect_ex(location)
+            result_of_check = a_socket.connect_ex(host_location)
 
             return result_of_check == 0
         except Exception:
@@ -44,7 +47,9 @@ class OaasGrpcClient(oaas.ClientMiddleware):
         if client_definition.gav == "default:oaas-registry:1":
             resolve_response = registry_discovery.find_registry()
         else:
-            resolve_response = oaas_registry().resolve_service(as_service_definition(client_definition))
+            resolve_response = oaas_registry().resolve_service(
+                as_service_definition(client_definition)
+            )
 
         channel = self.find_channel(resolve_response)
 
