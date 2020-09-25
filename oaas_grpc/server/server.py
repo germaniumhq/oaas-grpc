@@ -1,3 +1,5 @@
+from typing import Optional, Type
+
 from concurrent import futures
 
 import grpc
@@ -6,6 +8,20 @@ import oaas._registrations as registrations
 from oaas_grpc.server.find_ips import find_ips
 from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition
 from oaas_registry_api.rpc.registry_pb2_grpc import OaasRegistryStub
+
+
+def find_add_to_server_base(t: Type) -> Optional[Type]:
+    items_to_process = {t}
+
+    while items_to_process:
+        item = items_to_process.pop()
+
+        if hasattr(item, "add_to_server"):
+            return item
+
+        items_to_process.update(item.__bases__)
+
+    return None
 
 
 class OaasGrpcServer(oaas.ServerMiddleware):
@@ -32,7 +48,7 @@ class OaasGrpcServer(oaas.ServerMiddleware):
                 f"Added GRPC service: {service_definition.gav} as {service_definition.code}"
             )
 
-            service_definition.code.add_to_server(  # type: ignore
+            find_add_to_server_base(service_definition.code).add_to_server(  # type: ignore
                 service_definition.code(), self.server
             )
 
@@ -60,4 +76,4 @@ class OaasGrpcServer(oaas.ServerMiddleware):
         self.server.wait_for_termination()
 
     def can_serve(self, service_definition: oaas.ServiceDefinition) -> bool:
-        return hasattr(service_definition.code, "add_to_server")
+        return find_add_to_server_base(service_definition.code) is not None
