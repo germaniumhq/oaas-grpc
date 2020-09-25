@@ -3,7 +3,7 @@ from typing import List
 import netifaces
 
 
-def find_ips() -> List[str]:
+def find_ips(*, port: int) -> List[str]:
     result: List[str] = []
 
     for interface in netifaces.interfaces():
@@ -13,6 +13,6 @@ def find_ips() -> List[str]:
             continue
 
         for link in ifaddresses[netifaces.AF_INET]:
-            result.append(link["addr"])
+            result.append(link["addr"] + ":" + str(port))
 
     return result
