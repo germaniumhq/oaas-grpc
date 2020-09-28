@@ -1,10 +1,10 @@
-from typing import Optional, Type
-
 from concurrent import futures
+from typing import Optional, Type
 
 import grpc
 import oaas
 import oaas._registrations as registrations
+from oaas_grpc import OaasGrpcClient
 from oaas_grpc.server.find_ips import find_ips
 from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition
 from oaas_registry_api.rpc.registry_pb2_grpc import OaasRegistryStub
@@ -34,6 +34,8 @@ class OaasGrpcServer(oaas.ServerMiddleware):
             return
 
         self._is_serving = True
+
+        ensure_grpc_client()
 
         server_address: str = f"[::]:{self.port}"
         self.server = grpc.server(futures.ThreadPoolExecutor())
@@ -77,3 +79,17 @@ class OaasGrpcServer(oaas.ServerMiddleware):
 
     def can_serve(self, service_definition: oaas.ServiceDefinition) -> bool:
         return find_add_to_server_base(service_definition.code) is not None
+
+
+def ensure_grpc_client():
+    """
+    If we're exposing gRPC services, we also need to register them
+    into the oaas-registry. For this to happen, we need to have the
+    OaasGrpcClient registered. If the user forgot to add it, we'll
+    add it ourselves.
+    """
+    for client in registrations.clients_middleware:
+        if isinstance(client, OaasGrpcClient):
+            return
+
+    oaas.register_client_provider(OaasGrpcClient())
