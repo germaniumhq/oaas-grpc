@@ -47,14 +47,17 @@ class OaasGrpcClient(oaas.ClientMiddleware):
         tags: Optional[Dict[str, str]] = None,
         code: Type[T]
     ) -> T:
-        return GrpcCallProxy(
-            instance_handler=GrpcProxyInstanceHandler(
-                namespace=namespace,
-                name=name,
-                version=version,
-                tags=tags,
-                code=code,
-            )
+        return cast(
+            T,
+            GrpcCallProxy(
+                instance_handler=GrpcProxyInstanceHandler(
+                    namespace=namespace,
+                    name=name,
+                    version=version,
+                    tags=tags,
+                    code=code,
+                )
+            ),
         )
 
     def can_handle(self, client_definition: ClientDefinition) -> bool:

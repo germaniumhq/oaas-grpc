@@ -17,11 +17,7 @@ class TestInstanceHandler(ProxyInstanceHandler):
     def initial_instance(self):
         return FailingType()
 
-    def call_error(self,
-                   oaas_grpc_proxy,
-                   oaas_grpc_exception,
-                   *args,
-                   **kw):
+    def call_error(self, oaas_grpc_proxy, oaas_grpc_exception, *args, **kw):
         oaas_grpc_proxy._delegate = SucceedingType()
 
         # the call should be retried

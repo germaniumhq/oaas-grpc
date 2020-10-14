@@ -6,9 +6,13 @@ from oaas_grpc.client import registry_discovery
 from oaas_grpc.client.connection_test import is_someone_listening
 from oaas_grpc.client.oaas_registry import oaas_registry
 from oaas_grpc.client.proxy import ProxyInstanceHandler
-from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition, OaasResolveServiceResponse
+from oaas_registry_api.rpc.registry_pb2 import (
+    OaasServiceDefinition,
+    OaasResolveServiceResponse,
+    OaasServiceId,
+)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def is_unavailable_service(oaas_grpc_exception):
@@ -25,13 +29,15 @@ def is_unavailable_service(oaas_grpc_exception):
 
 
 class GrpcProxyInstanceHandler(ProxyInstanceHandler):
-    def __init__(self,
-                 *,
-                 namespace: str,
-                 name: str,
-                 version: str,
-                 tags: Optional[Dict[str, str]],
-                 code: Type[T]):
+    def __init__(
+        self,
+        *,
+        namespace: str,
+        name: str,
+        version: str,
+        tags: Optional[Dict[str, str]],
+        code: Type[T]
+    ):
         self.namespace = namespace
         self.name = name
         self.version = version
@@ -43,7 +49,11 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
 
     def initial_instance(self):
         # the ooas-registry is only hosted on the grpc
-        if self.namespace == "default" and self.name == "oaas-registry" and self.version == "1":
+        if (
+            self.namespace == "default"
+            and self.name == "oaas-registry"
+            and self.version == "1"
+        ):
             resolve_response = registry_discovery.find_registry()
         else:
             resolve_response = oaas_registry().resolve_service(
@@ -58,11 +68,7 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         channel = self.find_channel(resolve_response)
         return self.code(channel=channel)
 
-    def call_error(self,
-                   oaas_grpc_proxy,
-                   oaas_grpc_exception,
-                   *args,
-                   **kw):
+    def call_error(self, oaas_grpc_proxy, oaas_grpc_exception, *args, **kw):
         # FIXME: this should recreate the instance only if the call is a grpc unavailable
         # exception.
         if not is_unavailable_service(oaas_grpc_exception) or self._failed_tries >= 5:
@@ -91,5 +97,13 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
                     self._channels[location] = channel
 
                     return channel
+
+            # none of the locations for that definition were accessible
+            # unregister the service by the client.
+            # FIXME: make unregistering by clients configurable
+            # FIXME: shoulnd't have hardcoded values on _instance_id, but types
+            oaas_registry().unregister_service(
+                OaasServiceId(id=service_definition.tags["_instance_id"])
+            )
 
         raise Exception("Unable to find any listening service on any of the locations.")

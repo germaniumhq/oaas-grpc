@@ -1,18 +1,26 @@
 import abc
 from typing import TypeVar, Any, Dict
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ProxyInstanceHandler(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def initial_instance(self): ...
+    """
+    The instance handler creates the underlying delegate object
+    and deals with transparently recreating it.
+    """
 
     @abc.abstractmethod
-    def call_error(self, oaas_grpc_proxy, oaas_grpc_exception, *args, **kw): ...
+    def initial_instance(self):
+        ...
 
     @abc.abstractmethod
-    def call_success(self): ...
+    def call_error(self, oaas_grpc_proxy, oaas_grpc_exception, *args, **kw):
+        ...
+
+    @abc.abstractmethod
+    def call_success(self):
+        ...
 
 
 class GrpcCallProxyMethod:
@@ -21,12 +29,15 @@ class GrpcCallProxyMethod:
     method. Notifies the instance handler on the status of the
     last operation.
     """
-    def __init__(self,
-                 *,
-                 oaas_grpc_proxy: 'GrpcCallProxy',
-                 instance_handler: ProxyInstanceHandler,
-                 method_name: str,
-                 delegate_method) -> None:
+
+    def __init__(
+        self,
+        *,
+        oaas_grpc_proxy: "GrpcCallProxy",
+        instance_handler: ProxyInstanceHandler,
+        method_name: str,
+        delegate_method
+    ) -> None:
         self._method_name = method_name
         self._proxy = oaas_grpc_proxy
         self._method = delegate_method
@@ -38,23 +49,18 @@ class GrpcCallProxyMethod:
             self._instance_handler.call_success()
             return result
         except Exception as e:
-            proxy = self._instance_handler.call_error(
-                self._proxy,
-                e,
-                *args,
-                **kw
-            )
+            proxy = self._instance_handler.call_error(self._proxy, e, *args, **kw)
             return getattr(proxy, self._method_name)(*args, **kw)
 
 
-class GrpcCallProxy():
-    def __init__(self,
-                 *,
-                 instance_handler: ProxyInstanceHandler) -> None:
-        #self._grpc_type = grpc_type
-        #self._grpc_channel = channel
+class GrpcCallProxy:
+    """
+    The call proxy keeps a dictionary of method proxies, since we
+    need to wrap each call to inform the instance handler in
+    case we have failures in communication.
+    """
 
-        #self._delegate = self._grpc_type(channel=channel)  # type: ignore
+    def __init__(self, *, instance_handler: ProxyInstanceHandler) -> None:
         self.__delegate = instance_handler.initial_instance()
         self._instance_handler = instance_handler
         self._proxy_methods: Dict[str, GrpcCallProxyMethod] = dict()
