@@ -1,32 +1,14 @@
-import socket
 from typing import Dict, Type, Optional, cast
 
-import grpc
 import oaas
 from grpc import Channel
 from oaas import ClientDefinition
 from oaas.client_provider import T
-from oaas_grpc.client import registry_discovery
-from oaas_grpc.client.oaas_registry import oaas_registry
+from oaas_grpc.client.grpc_proxy_instance_handler import GrpcProxyInstanceHandler
+from oaas_grpc.client.proxy import GrpcCallProxy
 from oaas_registry_api.rpc.registry_pb2 import (
-    OaasResolveServiceResponse,
     OaasServiceDefinition,
 )
-
-
-def is_someone_listening(location: str) -> bool:
-    tokens = location.split(":")
-    host_address = tokens[0]
-    port = int(tokens[1])
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as a_socket:
-        host_location = (host_address, port)
-        try:
-            result_of_check = a_socket.connect_ex(host_location)
-
-            return result_of_check == 0
-        except Exception:
-            return False
 
 
 def as_service_definition(client_definition: ClientDefinition) -> OaasServiceDefinition:
@@ -65,36 +47,15 @@ class OaasGrpcClient(oaas.ClientMiddleware):
         tags: Optional[Dict[str, str]] = None,
         code: Type[T]
     ) -> T:
-        # the ooas-registry is only hosted on the grpc
-        if namespace == "default" and name == "oaas-registry" and version == "1":
-            resolve_response = registry_discovery.find_registry()
-        else:
-            resolve_response = oaas_registry().resolve_service(
-                OaasServiceDefinition(
-                    namespace=namespace,
-                    name=name,
-                    version=version,
-                    tags=tags,
-                )
+        return GrpcCallProxy(
+            instance_handler=GrpcProxyInstanceHandler(
+                namespace=namespace,
+                name=name,
+                version=version,
+                tags=tags,
+                code=code,
             )
-
-        channel = self.find_channel(resolve_response)
-
-        return code(channel=channel)  # type: ignore
-
-    def find_channel(self, resolve_response: OaasResolveServiceResponse) -> Channel:
-        for service_definition in resolve_response.services:
-            for location in service_definition.locations:
-                if location in self._channels:
-                    return self._channels[location]
-
-                if is_someone_listening(location):
-                    channel = grpc.insecure_channel(location)
-                    self._channels[location] = channel
-
-                    return channel
-
-        raise Exception("Unable to find any listening service on any of the locations.")
+        )
 
     def can_handle(self, client_definition: ClientDefinition) -> bool:
         """
