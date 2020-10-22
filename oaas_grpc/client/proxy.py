@@ -1,5 +1,8 @@
 import abc
 from typing import TypeVar, Any, Dict
+import logging
+
+LOG = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -36,7 +39,7 @@ class GrpcCallProxyMethod:
         oaas_grpc_proxy: "GrpcCallProxy",
         instance_handler: ProxyInstanceHandler,
         method_name: str,
-        delegate_method
+        delegate_method,
     ) -> None:
         self._method_name = method_name
         self._proxy = oaas_grpc_proxy
@@ -45,10 +48,16 @@ class GrpcCallProxyMethod:
 
     def __call__(self, *args, **kw) -> Any:
         try:
+            LOG.debug(f"=> <proxy>.%s", self._method_name)
+
             result = self._method(*args, **kw)
             self._instance_handler.call_success()
+
+            LOG.debug(f"<= <proxy>.%s", self._method_name)
+
             return result
         except Exception as e:
+            LOG.debug(f"<= <proxy>.%s", self._method_name, exc_info=e)
             proxy = self._instance_handler.call_error(self._proxy, e, *args, **kw)
             return getattr(proxy, self._method_name)(*args, **kw)
 

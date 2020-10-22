@@ -9,6 +9,10 @@ from oaas_grpc.server.find_ips import find_ips
 from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition
 from oaas_registry_api.rpc.registry_pb2_grpc import OaasRegistryStub
 
+import logging
+
+LOG = logging.getLogger(__name__)
+
 
 def find_add_to_server_base(t: Type) -> Optional[Type]:
     items_to_process = {t}
@@ -46,8 +50,10 @@ class OaasGrpcServer(oaas.ServerMiddleware):
             if not self.can_serve(service_definition):
                 continue
 
-            print(
-                f"Added GRPC service: {service_definition.gav} as {service_definition.code}"
+            LOG.info(
+                "Added GRPC service: %s as %s",
+                service_definition.gav,
+                service_definition.code,
             )
 
             find_add_to_server_base(service_definition.code).add_to_server(  # type: ignore
@@ -58,7 +64,7 @@ class OaasGrpcServer(oaas.ServerMiddleware):
 
         locations = find_ips(port=self.port)
 
-        print(f"listening on {port}")
+        LOG.info("listening on %d", port)
         self.server.start()
 
         # we register the services

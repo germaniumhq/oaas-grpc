@@ -1,5 +1,7 @@
 from typing import Optional, Dict, TypeVar, Type
 
+import logging
+
 import grpc
 from grpc import Channel
 from oaas_grpc.client import registry_discovery
@@ -11,6 +13,8 @@ from oaas_registry_api.rpc.registry_pb2 import (
     OaasResolveServiceResponse,
     OaasServiceId,
 )
+
+LOG = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -36,7 +40,7 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         name: str,
         version: str,
         tags: Optional[Dict[str, str]],
-        code: Type[T]
+        code: Type[T],
     ):
         self.namespace = namespace
         self.name = name
@@ -44,7 +48,6 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         self.tags = tags
         self.code = code
 
-        self._channels: Dict[str, Channel] = dict()
         self._failed_tries = 0
 
     def initial_instance(self):
@@ -56,6 +59,9 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         ):
             resolve_response = registry_discovery.find_registry()
         else:
+            LOG.debug(
+                f"=> resolve service %s:%s:%s", self.namespace, self.name, self.version
+            )
             resolve_response = oaas_registry().resolve_service(
                 OaasServiceDefinition(
                     namespace=self.namespace,
@@ -64,8 +70,17 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
                     tags=self.tags,
                 )
             )
+            LOG.debug(
+                f"<= resolve service %s:%s:%s", self.namespace, self.name, self.version
+            )
 
-        channel = self.find_channel(resolve_response)
+        LOG.debug("=> find_channel")
+        channel = self.find_channel(
+            resolve_response=resolve_response,
+            gav_service_name=f"{self.namespace}:{self.name}:{self.version}",
+        )
+        LOG.debug(f"<= find_channel %s", channel)
+
         return self.code(channel=channel)
 
     def call_error(self, oaas_grpc_proxy, oaas_grpc_exception, *args, **kw):
@@ -77,8 +92,6 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
 
         self._failed_tries += 1
 
-        # FIXME: the channels should be managed externally by a channel manager
-        self._channels.clear()
         oaas_grpc_proxy._delegate = self.initial_instance()
 
         return oaas_grpc_proxy._delegate
@@ -86,15 +99,13 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
     def call_success(self):
         self._failed_tries = 0
 
-    def find_channel(self, resolve_response: OaasResolveServiceResponse) -> Channel:
+    def find_channel(
+        self, *, resolve_response: OaasResolveServiceResponse, gav_service_name: str
+    ) -> Channel:
         for service_definition in resolve_response.services:
             for location in service_definition.locations:
-                if location in self._channels:
-                    return self._channels[location]
-
                 if is_someone_listening(location):
                     channel = grpc.insecure_channel(location)
-                    self._channels[location] = channel
 
                     return channel
 
@@ -106,4 +117,7 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
                 OaasServiceId(id=service_definition.tags["_instance_id"])
             )
 
-        raise Exception("Unable to find any listening service on any of the locations.")
+        raise Exception(
+            f"Unable to find any listening service on any of the "
+            f"locations for {gav_service_name}."
+        )
