@@ -1,12 +1,12 @@
 from concurrent import futures
-from typing import Optional, Type
+from typing import Optional, Type, Any, Dict
 
 import grpc
 import oaas
 import oaas._registrations as registrations
 from oaas_grpc import OaasGrpcClient
 from oaas_grpc.server.find_ips import find_ips
-from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition
+from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition, OaasServiceId
 from oaas_registry_api.rpc.registry_pb2_grpc import OaasRegistryStub
 
 import logging
@@ -85,6 +85,40 @@ class OaasGrpcServer(oaas.ServerMiddleware):
 
     def can_serve(self, service_definition: oaas.ServiceDefinition) -> bool:
         return find_add_to_server_base(service_definition.code) is not None
+
+    def can_publish(self, *, instance: Any) -> bool:
+        return find_add_to_server_base(type(instance)) is not None
+
+    def publish(
+        self,
+        instance: Any,
+        name: str,
+        namespace: str = "default",
+        version: str = "1",
+        tags: Optional[Dict[str, str]] = None,
+    ) -> str:
+        find_add_to_server_base(type(instance)).add_to_server(  # type: ignore
+            instance, self.server
+        )
+
+        registry = oaas.get_client(OaasRegistryStub)
+        locations = find_ips(port=self.port)
+
+        result = registry.register_service(
+            OaasServiceDefinition(
+                namespace=namespace,
+                name=name,
+                version=version,
+                tags=tags,
+                locations=locations,
+            )
+        )
+
+        return result.id
+
+    def unpublish(self, id: str) -> None:
+        registry = oaas.get_client(OaasRegistryStub)
+        registry.unregister_service(OaasServiceId(id=id))
 
 
 def ensure_grpc_client():

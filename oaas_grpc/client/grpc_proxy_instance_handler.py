@@ -78,6 +78,7 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         channel = self.find_channel(
             resolve_response=resolve_response,
             gav_service_name=f"{self.namespace}:{self.name}:{self.version}",
+            tags=self.tags,
         )
         LOG.debug(f"<= find_channel %s", channel)
 
@@ -92,7 +93,13 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
 
         self._failed_tries += 1
 
-        oaas_grpc_proxy._delegate = self.initial_instance()
+        try:
+            oaas_grpc_proxy._delegate = self.initial_instance()
+        except Exception as e:
+            # recreating the instance failed for whatever reason, we can't retry
+            # anymore.
+            self._failed_tries = 0
+            raise oaas_grpc_exception
 
         return oaas_grpc_proxy._delegate
 
@@ -100,8 +107,17 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
         self._failed_tries = 0
 
     def find_channel(
-        self, *, resolve_response: OaasResolveServiceResponse, gav_service_name: str
+        self,
+        *,
+        resolve_response: OaasResolveServiceResponse,
+        gav_service_name: str,
+        tags: Optional[Dict[str, str]],
     ) -> Channel:
+        if not resolve_response.services:
+            raise Exception(
+                f"No service registered for {gav_service_name} and tags {tags}"
+            )
+
         for service_definition in resolve_response.services:
             for location in service_definition.locations:
                 if is_someone_listening(location):
@@ -113,9 +129,7 @@ class GrpcProxyInstanceHandler(ProxyInstanceHandler):
             # unregister the service by the client.
             # FIXME: make unregistering by clients configurable
             # FIXME: shoulnd't have hardcoded values on _instance_id, but types
-            oaas_registry().unregister_service(
-                OaasServiceId(id=service_definition.tags["_instance_id"])
-            )
+            oaas_registry().unregister_service(OaasServiceId(id=service_definition.id))
 
         raise Exception(
             f"Unable to find any listening service on any of the "
