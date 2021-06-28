@@ -1,15 +1,15 @@
+import logging
 from concurrent import futures
 from typing import Optional, Type, Any, Dict
 
 import grpc
 import oaas
 import oaas._registrations as registrations
-from oaas_grpc import OaasGrpcClient
-from oaas_grpc.server.find_ips import find_ips
 from oaas_registry_api.rpc.registry_pb2 import OaasServiceDefinition, OaasServiceId
 from oaas_registry_api.rpc.registry_pb2_grpc import OaasRegistryStub
 
-import logging
+from oaas_grpc import OaasGrpcClient
+from oaas_grpc.server.find_ips import find_ips
 
 LOG = logging.getLogger(__name__)
 
@@ -51,14 +51,17 @@ class OaasGrpcServer(oaas.ServerMiddleware):
                 continue
 
             LOG.info(
-                "Added GRPC service: %s as %s",
+                "Adding GRPC service: %s as %s",
                 service_definition.gav,
                 service_definition.code,
             )
 
-            find_add_to_server_base(service_definition.code).add_to_server(  # type: ignore
-                service_definition.code(), self.server
-            )
+            try:
+                find_add_to_server_base(service_definition.code).add_to_server(  # type: ignore
+                    service_definition.code(), self.server
+                )
+            except Exception as e:
+                raise Exception(f"Failure adding GRPC {service_definition.gav}", e)
 
         port = self.server.add_insecure_port(server_address)
 
