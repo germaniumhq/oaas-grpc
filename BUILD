@@ -1,15 +1,17 @@
-package(default_visibility = ["PUBLIC"])
+load("@pip//:requirements.bzl", "requirement")
 
 
-python_library(
+py_library(
   name="grpc",
   srcs=glob(["oaas_grpc/**/*.py"]),
+  imports=[""],
   deps=[
-    "//thirdparty/python:grpcio",
-    "//thirdparty/python:netifaces",
-    "//thirdparty/python:protobuf",
-
     "//oaas/oaas",
     "//oaas/registry-api",
+    requirement('netifaces'),
+    requirement('protobuf'),
+    requirement('grpcio'),
   ]
 )
+
+package(default_visibility = ["//visibility:public"])
