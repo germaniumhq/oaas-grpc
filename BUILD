@@ -5,9 +5,9 @@ subinclude("//build/please:python.plz")
 ge_python_library(
   name="grpc",
   deps=[
-    "//build/thirdparty/python:netifaces",
-    "//build/thirdparty/python:protobuf",
-    "//build/thirdparty/python:grpcio",
+    "//build/thirdparty/gepython:netifaces",
+    "//build/thirdparty/gepython:protobuf",
+    "//build/thirdparty/gepython:grpcio",
 
     "//oaas/oaas",
     "//oaas/registry-api",
